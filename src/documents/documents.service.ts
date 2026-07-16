@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { createReadStream } from 'fs';
 import { mkdir, readFile, stat, unlink, writeFile } from 'fs/promises';
@@ -58,7 +59,6 @@ type MulterFileLike = {
   buffer?: Buffer;
 };
 
-const STORAGE_ROOT = join(process.cwd(), 'storage', 'documents');
 const ALLOWED_CATEGORIES: DocumentUploadCategory[] = [
   'PAYMENT_PROOF',
   'COMPLAINT_EVIDENCE',
@@ -80,7 +80,17 @@ const ALLOWED_MIME_TYPES = new Set([
 
 @Injectable()
 export class DocumentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  private get storageRoot() {
+    return (
+      this.configService.get<string>('DOCUMENTS_STORAGE_ROOT', '').trim() ||
+      join(process.cwd(), 'storage', 'documents')
+    );
+  }
 
   async list(facilityId?: string): Promise<FacilityDocumentRecord[]> {
     const [invoices, payments, complaints] = await Promise.all([
@@ -231,12 +241,12 @@ export class DocumentsService {
       await this.ensureFacility(input.facilityId);
     }
 
-    await mkdir(STORAGE_ROOT, { recursive: true });
+    await mkdir(this.storageRoot, { recursive: true });
 
     const extension = extname(file.originalname) || '';
     const storedName = `${input.category.toLowerCase()}-${Date.now()}-${randomUUID()}${extension}`;
 
-    await writeFile(join(STORAGE_ROOT, storedName), file.buffer);
+    await writeFile(join(this.storageRoot, storedName), file.buffer);
 
     return enrichStoredDocumentReference({
       storedName,
@@ -251,7 +261,7 @@ export class DocumentsService {
 
   async deleteUpload(storedName: string) {
     const safeStoredName = this.assertSafeStoredName(storedName);
-    const filePath = join(STORAGE_ROOT, safeStoredName);
+    const filePath = join(this.storageRoot, safeStoredName);
     const exists = await stat(filePath).catch(() => null);
 
     if (!exists) {
@@ -264,7 +274,7 @@ export class DocumentsService {
 
   async getStoredFile(storedName: string): Promise<FileResponsePayload> {
     const safeStoredName = this.assertSafeStoredName(storedName);
-    const filePath = join(STORAGE_ROOT, safeStoredName);
+    const filePath = join(this.storageRoot, safeStoredName);
     const fileStats = await stat(filePath).catch(() => null);
 
     if (!fileStats) {
@@ -534,7 +544,7 @@ export class DocumentsService {
     const storedName = this.extractStoredName(url);
     if (storedName) {
       const safeStoredName = this.assertSafeStoredName(storedName);
-      const filePath = join(STORAGE_ROOT, safeStoredName);
+      const filePath = join(this.storageRoot, safeStoredName);
       const buffer = await readFile(filePath).catch(() => null);
       if (!buffer) {
         return null;
@@ -591,7 +601,7 @@ export class DocumentsService {
   }
 
   private async writeGeneratedDocument(fileName: string, content: Buffer) {
-    const generatedRoot = join(STORAGE_ROOT, 'generated');
+    const generatedRoot = join(this.storageRoot, 'generated');
     await mkdir(generatedRoot, { recursive: true });
     const fullPath = join(generatedRoot, fileName);
     await writeFile(fullPath, content);

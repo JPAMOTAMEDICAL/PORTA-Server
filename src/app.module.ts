@@ -29,7 +29,9 @@ import { validateEnv } from './config/env.validation';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      ignoreEnvFile: process.env.IGNORE_ENV_FILE === 'true',
+      ignoreEnvFile:
+        process.env.NODE_ENV === 'production' ||
+        process.env.IGNORE_ENV_FILE === 'true',
       validate: validateEnv,
     }),
     PrismaModule,

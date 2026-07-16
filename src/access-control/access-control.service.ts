@@ -792,26 +792,22 @@ export class AccessControlService implements OnModuleInit {
   }
 
   private async seedPermissions() {
-    const existing = await this.prisma.permission.findMany({
-      select: { code: true },
-    });
-    const existingCodes = new Set(existing.map((item) => item.code));
-    const missing = permissionCatalog.filter(
-      (permission) => !existingCodes.has(permission.code),
-    );
-
-    if (!missing.length) {
-      return;
-    }
-
-    await this.prisma.permission.createMany({
-      data: missing.map((permission) => ({
+    for (const permission of permissionCatalog) {
+      await this.prisma.permission.upsert({
+        where: { code: permission.code },
+        update: {
+          label: permission.label,
+          module: permission.module,
+          description: permission.description,
+        },
+        create: {
         code: permission.code,
         label: permission.label,
         module: permission.module,
         description: permission.description,
-      })),
-    });
+        },
+      });
+    }
   }
 
   private async seedRoles() {

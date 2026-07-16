@@ -62,6 +62,7 @@ export function validateEnv(rawEnv: RawEnv) {
   const frontendAdminUrl = readString(env, 'FRONTEND_ADMIN_URL');
   const frontendFacilityUrl = readString(env, 'FRONTEND_FACILITY_URL');
   const googleMapsApiKey = readString(env, 'GOOGLE_MAPS_API_KEY');
+  const documentsStorageRoot = readString(env, 'DOCUMENTS_STORAGE_ROOT');
   const cloudinaryCloudName = readString(env, 'CLOUDINARY_CLOUD_NAME');
   const cloudinaryApiKey = readString(env, 'CLOUDINARY_API_KEY');
   const cloudinaryApiSecret = readString(env, 'CLOUDINARY_API_SECRET');
@@ -130,6 +131,7 @@ export function validateEnv(rawEnv: RawEnv) {
     FRONTEND_ADMIN_URL: frontendAdminUrl,
     FRONTEND_FACILITY_URL: frontendFacilityUrl,
     GOOGLE_MAPS_API_KEY: googleMapsApiKey,
+    DOCUMENTS_STORAGE_ROOT: documentsStorageRoot,
     SMTP_HOST: smtpHost,
     SMTP_PORT: smtpPort,
     SMTP_USERNAME: smtpUsername,
