@@ -1,0 +1,544 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  OPERATIONS_MANAGER
+  CLIENT_SERVICE_OFFICER
+  DRIVER
+  ACCOUNTANT
+  HOSPITAL_ADMIN
+}
+
+enum CollectionFrequency {
+  DAILY
+  WEEKLY
+  TWICE_WEEKLY
+  BI_WEEKLY
+  MONTHLY
+  QUARTERLY
+  ANNUAL
+  CUSTOM
+}
+
+enum FacilityType {
+  HOSPITAL
+  CLINIC
+  LABORATORY
+  DIAGNOSTIC_CENTRE
+}
+
+enum BillingType {
+  KG_BASED
+  FIXED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+}
+
+enum CollectionStatus {
+  DRAFT
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  PENDING_APPROVAL
+  SYNCED
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  SMS
+  WHATSAPP
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  READ
+  FAILED
+}
+
+enum ApprovalStatus {
+  SUBMITTED
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  RETURNED
+}
+
+enum SignupStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum VisitPurpose {
+  WASTE_COLLECTION
+  INVOICE_DELIVERY
+  RECEIPT_COLLECTION
+  PAYMENT_FOLLOW_UP
+  COMPLAINT_RESOLUTION
+  COMPLIANCE_INSPECTION
+  FACILITY_INSPECTION
+  CONTRACT_RENEWAL
+  NEW_CLIENT_ACQUISITION
+  RELATIONSHIP_VISIT
+}
+
+enum VisitStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum ComplaintType {
+  SERVICE
+  BILLING
+  STAFF
+  ENVIRONMENTAL
+  OTHER
+}
+
+enum ComplaintStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  ESCALATED
+  CLOSED
+}
+
+enum SyncStatus {
+  PENDING_SYNC
+  SYNCING
+  COMPLETED
+  FAILED_SYNC
+}
+
+model AccessRole {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  isSystem    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       UserAccessRole[]
+  permissions AccessRolePermission[]
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  label       String
+  description String?
+  module      String
+  createdAt   DateTime @default(now())
+
+  roles       AccessRolePermission[]
+
+  @@index([module])
+}
+
+model AccessRolePermission {
+  roleId       String
+  permissionId String
+  createdAt    DateTime @default(now())
+
+  role         AccessRole  @relation(fields: [roleId], references: [id])
+  permission   Permission  @relation(fields: [permissionId], references: [id])
+
+  @@id([roleId, permissionId])
+}
+
+model UserAccessRole {
+  userId   String
+  roleId   String
+  createdAt DateTime @default(now())
+
+  user     User       @relation(fields: [userId], references: [id])
+  role     AccessRole @relation(fields: [roleId], references: [id])
+
+  @@id([userId, roleId])
+  @@index([roleId])
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  username      String?   @unique
+  employeeId    String?   @unique
+  passwordHash  String
+  fullName      String
+  role          Role
+  facilityId    String?
+  facility      Facility? @relation(fields: [facilityId], references: [id])
+  address       String?
+  photoUrl      String?
+  department    String?
+  position      String?
+  employmentDate DateTime?
+  licenseNumber String?
+  status        String    @default("ACTIVE")
+  lastLoginAt   DateTime?
+  phone         String?
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  auditLogs         AuditLog[]
+  collections       Collection[]      @relation("DriverCollections")
+  routes            Route[]           @relation("DriverRoutes")
+  createdRoutes     Route[]           @relation("CreatedRoutes")
+  notifications     Notification[]
+  visits            FacilityVisit[]   @relation("StaffVisits")
+  assignedComplaints Complaint[]      @relation("ComplaintAssignments")
+  submittedComplaints Complaint[]     @relation("ComplaintSubmitters")
+  approvalRequests  ApprovalRequest[] @relation("RequestedApprovals")
+  reviewedApprovals ApprovalRequest[] @relation("ReviewedApprovals")
+  reviewedSignups   SignupRequest[]   @relation("SignupReviewers")
+  passwordResetTokens PasswordResetToken[]
+  verifiedPayments  Payment[]         @relation("PaymentVerifiers")
+  generatedInvoices Invoice[]         @relation("GeneratedInvoices")
+
+  accessRoles       UserAccessRole[]
+}
+
+model Facility {
+  id                String       @id @default(uuid())
+  name              String
+  code              String       @unique
+  type              FacilityType
+  address           String
+  city              String?
+  state             String?
+  lga               String?
+  gpsCoordinates    String?
+  billingType       BillingType
+  ratePerKg         Decimal?
+  fixedMonthlyRate  Decimal?
+  invoiceCycle      String       @default("MONTHLY")
+  collectionFrequency CollectionFrequency @default(WEEKLY)
+  contactPerson     String
+  phone             String
+  email             String
+  logoUrl           String?
+  outstandingBalance Decimal @default(0)
+  status            String       @default("ACTIVE")
+
+  users             User[]
+  collections       Collection[]
+  invoices          Invoice[]
+  visits            FacilityVisit[]
+  complaints        Complaint[]
+  notifications     Notification[]
+  signupRequests    SignupRequest[] @relation("SignupFacilities")
+  approvalRequests  ApprovalRequest[]
+
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  deletedAt         DateTime?
+}
+
+model Collection {
+  id            String           @id @default(uuid())
+  facilityId    String
+  facility      Facility         @relation(fields: [facilityId], references: [id])
+  driverId      String
+  driver        User             @relation("DriverCollections", fields: [driverId], references: [id])
+  weightKg      Decimal
+  binCount      Int              @default(0)
+  collectionTime DateTime        @default(now())
+  wasteType     String
+  notes         String?
+  photoUrls     Json?
+  signatureUrl  String?
+  manifestNo    String           @unique
+  deviceInfo    String?
+  gpsLocation   String?
+  clientReference String?        @unique
+  syncStatus    SyncStatus       @default(COMPLETED)
+  syncedAt      DateTime?
+  status        CollectionStatus @default(COMPLETED)
+
+  routeId       String?
+  route         Route?           @relation(fields: [routeId], references: [id])
+
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  deletedAt     DateTime?
+}
+
+model Invoice {
+  id            String        @id @default(uuid())
+  facilityId    String
+  facility      Facility      @relation(fields: [facilityId], references: [id])
+  invoiceNo     String        @unique
+  periodStart   DateTime
+  periodEnd     DateTime
+  totalWeight   Decimal       @default(0)
+  amountDue     Decimal
+  tax           Decimal       @default(0)
+  status        InvoiceStatus @default(DRAFT)
+  dueDate       DateTime
+  pdfUrl        String?
+  generatedById String?
+  generatedBy   User?         @relation("GeneratedInvoices", fields: [generatedById], references: [id])
+  deliveryChannels Json?
+  lastSentAt    DateTime?
+  lastSentTo    String?
+
+  payments      Payment[]
+  approvalRequests ApprovalRequest[]
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  deletedAt     DateTime?
+}
+
+model Payment {
+  id            String    @id @default(uuid())
+  invoiceId     String
+  invoice       Invoice   @relation(fields: [invoiceId], references: [id])
+  amount        Decimal
+  paymentDate   DateTime  @default(now())
+  reference     String    @unique
+  method        String
+  status        String    @default("PENDING") // PENDING, VERIFIED
+  notes         String?
+  receiptNumber String?
+  proofOfPayment String?
+  receiptDelivery Json?
+  verifiedById  String?
+  verifiedBy    User?     @relation("PaymentVerifiers", fields: [verifiedById], references: [id])
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+}
+
+model Vehicle {
+  id            String    @id @default(uuid())
+  plateNumber   String    @unique
+  capacityKg    Decimal
+  status        String    @default("ACTIVE")
+
+  routes        Route[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+}
+
+model Route {
+  id            String    @id @default(uuid())
+  driverId      String
+  driver        User      @relation("DriverRoutes", fields: [driverId], references: [id])
+  createdById   String?
+  createdBy     User?     @relation("CreatedRoutes", fields: [createdById], references: [id])
+  vehicleId     String
+  vehicle       Vehicle   @relation(fields: [vehicleId], references: [id])
+  plannedDate   DateTime
+  stops         Json      // Array of facility IDs and sequence
+  optimizedDist Decimal?
+  estimatedTravelTimeMinutes Int?
+  estimatedFuelLitres Decimal?
+  googleMapsUrl String?
+  status        String    @default("PLANNED")
+
+  collections   Collection[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+}
+
+model FacilityVisit {
+  id              String      @id @default(uuid())
+  facilityId      String
+  facility        Facility    @relation(fields: [facilityId], references: [id])
+  staffId         String
+  staff           User        @relation("StaffVisits", fields: [staffId], references: [id])
+  purpose         VisitPurpose
+  outcome         String?
+  notes           String?
+  photos          Json?
+  gpsCoordinates  String?
+  durationMinutes Int?
+  followUpRequired Boolean    @default(false)
+  followUpDate    DateTime?
+  clientReference String?     @unique
+  status          VisitStatus @default(COMPLETED)
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  deletedAt       DateTime?
+}
+
+model Complaint {
+  id              String          @id @default(uuid())
+  facilityId      String
+  facility        Facility        @relation(fields: [facilityId], references: [id])
+  submittedById   String?
+  submittedBy     User?           @relation("ComplaintSubmitters", fields: [submittedById], references: [id])
+  assignedToId    String?
+  assignedTo      User?           @relation("ComplaintAssignments", fields: [assignedToId], references: [id])
+  reference       String          @unique
+  type            ComplaintType
+  priority        String          @default("MEDIUM")
+  description     String
+  attachments     Json?
+  status          ComplaintStatus @default(OPEN)
+  resolutionNotes String?
+  resolvedAt      DateTime?
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  deletedAt       DateTime?
+}
+
+model Notification {
+  id           String              @id @default(uuid())
+  recipientId  String?
+  recipient    User?               @relation(fields: [recipientId], references: [id])
+  facilityId   String?
+  facility     Facility?           @relation(fields: [facilityId], references: [id])
+  title        String
+  message      String
+  type         String
+  channel      NotificationChannel @default(IN_APP)
+  status       NotificationStatus  @default(PENDING)
+  metadata     Json?
+  readAt       DateTime?
+
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+}
+
+model ApprovalRequest {
+  id            String         @id @default(uuid())
+  type          String
+  status        ApprovalStatus @default(PENDING_APPROVAL)
+  entityName    String
+  entityId      String
+  facilityId    String?
+  facility      Facility?      @relation(fields: [facilityId], references: [id])
+  invoiceId     String?
+  invoice       Invoice?       @relation(fields: [invoiceId], references: [id])
+  requestedById String
+  requestedBy   User           @relation("RequestedApprovals", fields: [requestedById], references: [id])
+  reviewedById  String?
+  reviewedBy    User?          @relation("ReviewedApprovals", fields: [reviewedById], references: [id])
+  oldValues     Json?
+  newValues     Json?
+  reason        String
+  reviewNotes   String?
+  reviewedAt    DateTime?
+
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model SignupRequest {
+  id                String       @id @default(uuid())
+  facilityName      String
+  facilityType      FacilityType
+  address           String
+  contactPerson     String
+  phone             String
+  email             String
+  state             String
+  lga               String
+  status            SignupStatus @default(SUBMITTED)
+  reviewedById      String?
+  reviewedBy        User?        @relation("SignupReviewers", fields: [reviewedById], references: [id])
+  reviewedAt        DateTime?
+  rejectionReason   String?
+  createdFacilityId String?
+  createdFacility   Facility?    @relation("SignupFacilities", fields: [createdFacilityId], references: [id])
+  generatedUsername String?
+  generatedPassword String?
+
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+}
+
+model PasswordResetToken {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  token      String   @unique
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime @default(now())
+}
+
+model AuditLog {
+  id            String    @id @default(uuid())
+  userId        String?
+  user          User?     @relation(fields: [userId], references: [id])
+  activityType  String
+  entityName    String
+  entityId      String
+  oldValues     Json?
+  newValues     Json?
+  ipAddress     String?
+  deviceInfo    String?
+  reason        String?
+  location      String?
+
+  createdAt     DateTime  @default(now())
+}
+
+model SystemSetting {
+  id            String    @id @default(uuid())
+  companyName   String
+  systemName    String?
+  tagline       String?
+  address       String
+  phone         String?
+  email         String?
+  website       String?
+  mainLogo      String?
+  secondaryLogo String?
+  tertiaryLogo  String?
+  invoiceLogo   String?
+  reportLogo    String?
+  adminHeroImage String?
+  clientHeroImage String?
+  invoiceTemplateUrl String?
+  receiptTemplateUrl String?
+  digitalSignature String?
+  invoiceFooter String?
+  receiptFooter String?
+  colorTheme    String?
+  kgRate        Decimal   @default(400.00)
+  invoicePrefix String    @default("INV-")
+  timezone      String    @default("Africa/Lagos")
+  dateFormat    String    @default("dd/MM/yyyy")
+  smtpHost      String?
+  smtpPort      Int?
+  smtpUsername  String?
+  smtpPassword  String?
+  smtpEncryption String?
+  smtpSenderName String?
+  smtpReplyEmail String?
+  smtpDefaultSenderEmail String?
+  bankAccounts  Json?
+
+  updatedAt     DateTime  @updatedAt
+}

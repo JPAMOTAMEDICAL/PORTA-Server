@@ -1,0 +1,399 @@
+import { chromium } from 'playwright';
+
+type TemplateValue = string | number | boolean | null | undefined;
+
+type TemplateModel = Record<string, TemplateValue>;
+
+export async function renderPdfDocument(input: {
+  templateHtml?: string | null;
+  fallbackTemplate: string;
+  model: TemplateModel;
+}) {
+  const html = renderTemplate(
+    input.templateHtml || input.fallbackTemplate,
+    input.model,
+  );
+  const browser = await chromium.launch({ headless: true });
+
+  try {
+    const page = await browser.newPage();
+    await page.setContent(html, {
+      waitUntil: 'networkidle',
+    });
+
+    return await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: {
+        top: '20px',
+        right: '20px',
+        bottom: '20px',
+        left: '20px',
+      },
+    });
+  } finally {
+    await browser.close();
+  }
+}
+
+export const defaultInvoiceTemplate = `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Invoice {{invoiceNo}}</title>
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        color: #0f172a;
+        font-family: Arial, Helvetica, sans-serif;
+        background: #f8fafc;
+      }
+      .page {
+        min-height: 100vh;
+        padding: 28px;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+      }
+      .header {
+        display: flex;
+        justify-content: space-between;
+        gap: 24px;
+        align-items: flex-start;
+        padding-bottom: 18px;
+        border-bottom: 3px solid {{themeColor}};
+      }
+      .logo-strip {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .logo-strip img {
+        max-height: 56px;
+        max-width: 150px;
+        object-fit: contain;
+      }
+      .meta-title {
+        font-size: 28px;
+        font-weight: 700;
+        margin: 0 0 8px;
+        color: {{themeColor}};
+      }
+      .company-name {
+        font-size: 20px;
+        font-weight: 700;
+        margin: 0 0 6px;
+      }
+      .muted {
+        color: #64748b;
+      }
+      .info-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+        margin-top: 24px;
+      }
+      .card {
+        border: 1px solid #e2e8f0;
+        border-radius: 18px;
+        padding: 18px;
+        background: #f8fafc;
+      }
+      .card h3 {
+        margin: 0 0 12px;
+        font-size: 13px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #475569;
+      }
+      .summary {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+        margin-top: 24px;
+      }
+      .summary .value {
+        display: block;
+        margin-top: 8px;
+        font-size: 18px;
+        font-weight: 700;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 24px;
+      }
+      thead th {
+        background: #eff6ff;
+        color: #0f172a;
+        font-size: 12px;
+        text-align: left;
+        padding: 12px;
+        border-bottom: 1px solid #cbd5e1;
+      }
+      tbody td {
+        padding: 12px;
+        border-bottom: 1px solid #e2e8f0;
+        vertical-align: top;
+      }
+      .totals {
+        margin-top: 18px;
+        margin-left: auto;
+        width: 320px;
+      }
+      .totals .row {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 0;
+        border-bottom: 1px solid #e2e8f0;
+      }
+      .totals .grand-total {
+        font-size: 18px;
+        font-weight: 700;
+        color: {{themeColor}};
+      }
+      .footer {
+        margin-top: 28px;
+        padding-top: 16px;
+        border-top: 1px solid #e2e8f0;
+        font-size: 12px;
+        color: #475569;
+      }
+      .signature img {
+        max-height: 72px;
+        object-fit: contain;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="header">
+        <div>
+          <div class="logo-strip">{{logoStripHtml}}</div>
+          <p class="company-name">{{companyName}}</p>
+          <p class="muted">{{companyAddress}}</p>
+          <p class="muted">{{companyContactLine}}</p>
+        </div>
+        <div style="text-align: right;">
+          <h1 class="meta-title">INVOICE</h1>
+          <p><strong>Invoice No:</strong> {{invoiceNo}}</p>
+          <p><strong>Issue Date:</strong> {{issueDate}}</p>
+          <p><strong>Due Date:</strong> {{dueDate}}</p>
+          <p><strong>Status:</strong> {{invoiceStatus}}</p>
+        </div>
+      </section>
+      <section class="info-grid">
+        <div class="card">
+          <h3>Bill To</h3>
+          <p><strong>{{facilityName}}</strong></p>
+          <p>{{facilityAddress}}</p>
+          <p>{{facilityEmail}}</p>
+          <p>{{facilityPhone}}</p>
+        </div>
+        <div class="card">
+          <h3>Service Period</h3>
+          <p><strong>Period:</strong> {{periodRange}}</p>
+          <p><strong>Generated By:</strong> {{generatedBy}}</p>
+          <p><strong>Template Source:</strong> {{templateSource}}</p>
+        </div>
+      </section>
+      <section class="summary">
+        <div class="card"><span class="muted">Waste Weight</span><span class="value">{{totalWeight}}</span></div>
+        <div class="card"><span class="muted">Subtotal</span><span class="value">{{subtotal}}</span></div>
+        <div class="card"><span class="muted">Tax</span><span class="value">{{tax}}</span></div>
+        <div class="card"><span class="muted">Outstanding</span><span class="value">{{amountDue}}</span></div>
+      </section>
+      <table>
+        <thead>
+          <tr>
+            <th>Description</th>
+            <th>Period</th>
+            <th>Weight</th>
+            <th>Amount</th>
+          </tr>
+        </thead>
+        <tbody>{{lineItemsRowsHtml}}</tbody>
+      </table>
+      <section class="totals">
+        <div class="row"><span>Subtotal</span><strong>{{subtotal}}</strong></div>
+        <div class="row"><span>Tax</span><strong>{{tax}}</strong></div>
+        <div class="row grand-total"><span>Total Due</span><span>{{amountDue}}</span></div>
+      </section>
+      <section class="footer">
+        <div>{{invoiceFooter}}</div>
+        <div class="signature" style="margin-top: 14px;">{{signatureHtml}}</div>
+      </section>
+    </main>
+  </body>
+</html>`;
+
+export const defaultReceiptTemplate = `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Receipt {{receiptNumber}}</title>
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        color: #0f172a;
+        font-family: Arial, Helvetica, sans-serif;
+        background: #f8fafc;
+      }
+      .page {
+        min-height: 100vh;
+        padding: 28px;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+      }
+      .header {
+        display: flex;
+        justify-content: space-between;
+        gap: 24px;
+        align-items: flex-start;
+        padding-bottom: 18px;
+        border-bottom: 3px solid {{themeColor}};
+      }
+      .logo-strip {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .logo-strip img {
+        max-height: 56px;
+        max-width: 150px;
+        object-fit: contain;
+      }
+      .meta-title {
+        font-size: 28px;
+        font-weight: 700;
+        margin: 0 0 8px;
+        color: {{themeColor}};
+      }
+      .card {
+        border: 1px solid #e2e8f0;
+        border-radius: 18px;
+        padding: 18px;
+        background: #f8fafc;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+        margin-top: 24px;
+      }
+      .grid p {
+        margin: 8px 0;
+      }
+      .amount {
+        margin-top: 24px;
+        border-radius: 20px;
+        background: #ecfdf5;
+        border: 1px solid #a7f3d0;
+        padding: 20px;
+        text-align: center;
+      }
+      .amount .value {
+        display: block;
+        margin-top: 10px;
+        font-size: 34px;
+        font-weight: 700;
+        color: {{themeColor}};
+      }
+      .footer {
+        margin-top: 30px;
+        padding-top: 16px;
+        border-top: 1px solid #e2e8f0;
+        font-size: 12px;
+        color: #475569;
+      }
+      .signature img {
+        max-height: 72px;
+        object-fit: contain;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="header">
+        <div>
+          <div class="logo-strip">{{logoStripHtml}}</div>
+          <p style="font-size: 20px; font-weight: 700; margin: 12px 0 4px;">{{companyName}}</p>
+          <p style="margin: 0; color: #64748b;">{{companyAddress}}</p>
+          <p style="margin: 6px 0 0; color: #64748b;">{{companyContactLine}}</p>
+        </div>
+        <div style="text-align: right;">
+          <h1 class="meta-title">RECEIPT</h1>
+          <p><strong>Receipt No:</strong> {{receiptNumber}}</p>
+          <p><strong>Receipt Date:</strong> {{receiptDate}}</p>
+          <p><strong>Invoice No:</strong> {{invoiceNo}}</p>
+          <p><strong>Status:</strong> {{paymentStatus}}</p>
+        </div>
+      </section>
+      <section class="grid">
+        <div class="card">
+          <p><strong>Facility</strong></p>
+          <p>{{facilityName}}</p>
+          <p>{{facilityAddress}}</p>
+          <p>{{facilityEmail}}</p>
+          <p>{{facilityPhone}}</p>
+        </div>
+        <div class="card">
+          <p><strong>Payment Details</strong></p>
+          <p><strong>Method:</strong> {{paymentMethod}}</p>
+          <p><strong>Reference:</strong> {{paymentReference}}</p>
+          <p><strong>Verified By:</strong> {{verifiedBy}}</p>
+          <p><strong>Template Source:</strong> {{templateSource}}</p>
+        </div>
+      </section>
+      <section class="amount">
+        <span>Amount Received</span>
+        <span class="value">{{paymentAmount}}</span>
+      </section>
+      <section class="grid">
+        <div class="card">
+          <p><strong>Service Coverage</strong></p>
+          <p>{{periodRange}}</p>
+        </div>
+        <div class="card">
+          <p><strong>Notes</strong></p>
+          <p>{{paymentNotes}}</p>
+        </div>
+      </section>
+      <section class="footer">
+        <div>{{receiptFooter}}</div>
+        <div class="signature" style="margin-top: 14px;">{{signatureHtml}}</div>
+      </section>
+    </main>
+  </body>
+</html>`;
+
+function renderTemplate(template: string, model: TemplateModel) {
+  return template.replace(
+    /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g,
+    (_match, key: string) => {
+      const value = model[key];
+      if (value === null || value === undefined) {
+        return '';
+      }
+
+      const stringValue = String(value);
+      if (key.endsWith('Html')) {
+        return stringValue;
+      }
+
+      return escapeHtml(stringValue);
+    },
+  );
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
