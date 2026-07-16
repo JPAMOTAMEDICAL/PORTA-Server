@@ -5,7 +5,9 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import type { SignOptions } from 'jsonwebtoken';
 import { PrismaService } from '../prisma/prisma.service';
 import { Role, User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
@@ -22,6 +24,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly accessControlService: AccessControlService,
     private readonly mailService: MailService,
+    private readonly configService: ConfigService,
   ) {}
 
   async register(data: {
@@ -76,11 +79,16 @@ export class AuthService {
       facilityId: user.facilityId,
     };
 
+    const expiresIn = rememberMe
+      ? this.configService.get<string>('JWT_REMEMBER_ME_EXPIRES_IN', '7d')
+      : this.configService.get<string>('JWT_EXPIRES_IN', '1d');
+    const normalizedExpiresIn = expiresIn as SignOptions['expiresIn'];
+
     return {
       accessToken: await this.jwtService.signAsync(payload, {
-        expiresIn: rememberMe ? '7d' : '1d',
+        expiresIn: normalizedExpiresIn,
       }),
-      expiresIn: rememberMe ? '7d' : '1d',
+      expiresIn,
       user: {
         id: user.id,
         email: user.email,

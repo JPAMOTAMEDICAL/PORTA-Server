@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
+import type { SignOptions } from 'jsonwebtoken';
 import { PassportModule } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
@@ -20,14 +21,15 @@ import { MailModule } from '../mail/mail.module';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
-        const secret = configService.get<string>('JWT_SECRET');
-        if (!secret) {
-          throw new Error('JWT_SECRET is required.');
-        }
-
+        const secret = configService.getOrThrow<string>('JWT_SECRET');
         return {
           secret,
-          signOptions: { expiresIn: '1d' },
+          signOptions: {
+            expiresIn: configService.get<string>(
+              'JWT_EXPIRES_IN',
+              '1d',
+            ) as SignOptions['expiresIn'],
+          },
         };
       },
     }),

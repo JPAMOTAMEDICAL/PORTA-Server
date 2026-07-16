@@ -23,11 +23,14 @@ import { RoutesModule } from './routes/routes.module';
 import { ManifestsModule } from './manifests/manifests.module';
 import { DocumentsModule } from './documents/documents.module';
 import { AccessControlModule } from './access-control/access-control.module';
+import { validateEnv } from './config/env.validation';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      ignoreEnvFile: process.env.IGNORE_ENV_FILE === 'true',
+      validate: validateEnv,
     }),
     PrismaModule,
     AuthModule,

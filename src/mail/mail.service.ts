@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import * as nodemailer from 'nodemailer';
 
@@ -35,7 +36,10 @@ type MailMessage = {
 
 @Injectable()
 export class MailService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly configService: ConfigService,
+  ) {}
 
   async verifyConnection(config?: SmtpSettingsInput) {
     const settings = await this.resolveSmtpSettings(config);
@@ -69,6 +73,13 @@ export class MailService {
   }
 
   private async resolveSmtpSettings(config?: SmtpSettingsInput) {
+    const envSmtpPort = this.configService.get<number | string | undefined>(
+      'SMTP_PORT',
+    );
+    const envSmtpEncryption = this.configService.get<string>(
+      'SMTP_ENCRYPTION',
+      'TLS',
+    );
     const stored = await this.prisma.systemSetting.findFirst({
       select: {
         smtpHost: true,
@@ -83,17 +94,38 @@ export class MailService {
     });
 
     const merged = {
-      smtpHost: config?.smtpHost ?? stored?.smtpHost ?? '',
-      smtpPort: Number(config?.smtpPort ?? stored?.smtpPort ?? 0),
-      smtpUsername: config?.smtpUsername ?? stored?.smtpUsername ?? '',
-      smtpPassword: config?.smtpPassword ?? stored?.smtpPassword ?? '',
+      smtpHost:
+        config?.smtpHost ??
+        stored?.smtpHost ??
+        this.configService.get<string>('SMTP_HOST', ''),
+      smtpPort: Number(
+        config?.smtpPort ??
+          stored?.smtpPort ??
+          (envSmtpPort === undefined ? 0 : envSmtpPort),
+      ),
+      smtpUsername:
+        config?.smtpUsername ??
+        stored?.smtpUsername ??
+        this.configService.get<string>('SMTP_USERNAME', ''),
+      smtpPassword:
+        config?.smtpPassword ??
+        stored?.smtpPassword ??
+        this.configService.get<string>('SMTP_PASSWORD', ''),
       smtpEncryption: String(
-        config?.smtpEncryption ?? stored?.smtpEncryption ?? 'TLS',
+        config?.smtpEncryption ?? stored?.smtpEncryption ?? envSmtpEncryption,
       ).toUpperCase(),
-      smtpSenderName: config?.smtpSenderName ?? stored?.smtpSenderName ?? '',
-      smtpReplyEmail: config?.smtpReplyEmail ?? stored?.smtpReplyEmail ?? '',
+      smtpSenderName:
+        config?.smtpSenderName ??
+        stored?.smtpSenderName ??
+        this.configService.get<string>('SMTP_SENDER_NAME', ''),
+      smtpReplyEmail:
+        config?.smtpReplyEmail ??
+        stored?.smtpReplyEmail ??
+        this.configService.get<string>('SMTP_REPLY_EMAIL', ''),
       smtpDefaultSenderEmail:
-        config?.smtpDefaultSenderEmail ?? stored?.smtpDefaultSenderEmail ?? '',
+        config?.smtpDefaultSenderEmail ??
+        stored?.smtpDefaultSenderEmail ??
+        this.configService.get<string>('SMTP_DEFAULT_SENDER_EMAIL', ''),
     };
 
     if (!merged.smtpHost.trim()) {
