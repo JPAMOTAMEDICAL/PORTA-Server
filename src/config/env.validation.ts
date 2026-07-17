@@ -4,11 +4,6 @@ const DEFAULT_PORT = 4000;
 const DEFAULT_JWT_EXPIRES_IN = '1d';
 const DEFAULT_JWT_REMEMBER_ME_EXPIRES_IN = '7d';
 const DEFAULT_NODE_ENV = 'development';
-const SMTP_REQUIRED_IF_SET = [
-  'SMTP_HOST',
-  'SMTP_PORT',
-  'SMTP_DEFAULT_SENDER_EMAIL',
-] as const;
 const CLOUDINARY_REQUIRED_IF_SET = [
   'CLOUDINARY_CLOUD_NAME',
   'CLOUDINARY_API_KEY',
@@ -22,10 +17,6 @@ function readString(env: RawEnv, key: string) {
   }
 
   return value.trim();
-}
-
-function hasAnyConfigured(env: RawEnv, keys: readonly string[]) {
-  return keys.some((key) => readString(env, key).length > 0);
 }
 
 function listMissing(env: RawEnv, keys: readonly string[]) {
@@ -96,16 +87,10 @@ export function validateEnv(rawEnv: RawEnv) {
     errors.push('SMTP_ENCRYPTION must be one of NONE, TLS, or SSL.');
   }
 
-  if (hasAnyConfigured(env, SMTP_REQUIRED_IF_SET)) {
-    const missing = listMissing(env, SMTP_REQUIRED_IF_SET);
-    if (missing.length > 0) {
-      errors.push(
-        `SMTP configuration is incomplete. Missing: ${missing.join(', ')}.`,
-      );
-    }
-  }
-
-  if (hasAnyConfigured(env, CLOUDINARY_REQUIRED_IF_SET)) {
+  const hasAnyCloudinaryConfig = CLOUDINARY_REQUIRED_IF_SET.some(
+    (key) => readString(env, key).length > 0,
+  );
+  if (hasAnyCloudinaryConfig) {
     const missing = listMissing(env, CLOUDINARY_REQUIRED_IF_SET);
     if (missing.length > 0) {
       errors.push(

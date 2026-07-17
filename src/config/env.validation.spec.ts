@@ -19,14 +19,14 @@ describe('validateEnv', () => {
     expect(env.NODE_ENV).toBe('development');
   });
 
-  it('rejects incomplete smtp configuration', () => {
+  it('allows startup without smtp configuration', () => {
     expect(() =>
       validateEnv({
         DATABASE_URL: 'file:./dev.db',
         JWT_SECRET: 'test-secret',
-        SMTP_HOST: 'smtp.example.com',
+        SMTP_PORT: '587',
       }),
-    ).toThrow(/SMTP configuration is incomplete/);
+    ).not.toThrow();
   });
 
   it('rejects incomplete cloudinary configuration', () => {
