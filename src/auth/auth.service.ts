@@ -184,6 +184,8 @@ export class AuthService {
       );
     }
 
+    this.assertValidNewPassword(newPassword);
+
     const resetToken = await this.prisma.passwordResetToken.findFirst({
       where: {
         token: token.trim(),
@@ -213,6 +215,12 @@ export class AuthService {
         'Current password and new password are required.',
       );
     }
+    if (currentPassword === newPassword) {
+      throw new BadRequestException(
+        'New password must be different from the current password.',
+      );
+    }
+    this.assertValidNewPassword(newPassword);
 
     const user = await this.usersService.findById(userId);
     if (!user) {
@@ -227,6 +235,15 @@ export class AuthService {
     await this.usersService.updatePassword(user.id, newPassword);
 
     return { message: 'Password updated successfully.' };
+  }
+
+  private assertValidNewPassword(newPassword: string) {
+    const normalizedPassword = newPassword.trim();
+    if (normalizedPassword.length < 8) {
+      throw new BadRequestException(
+        'New password must be at least 8 characters long.',
+      );
+    }
   }
 
   private escapeHtml(value: string) {

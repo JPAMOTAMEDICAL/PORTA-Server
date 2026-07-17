@@ -5,6 +5,7 @@ import {
   NotFoundException,
   OnModuleInit,
 } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { Role } from '@prisma/client';
 import { PermissionCodes, type PermissionCode } from './permission-codes';
@@ -15,6 +16,25 @@ type RoleSeed = {
   permissions: PermissionCode[];
   legacyRole?: Role;
 };
+
+type DefaultSuperAdminSeed = {
+  email: string;
+  fullName: string;
+  password: string;
+};
+
+const defaultSuperAdminSeeds: DefaultSuperAdminSeed[] = [
+  {
+    email: 'info@jpamotacleanersltd.com',
+    fullName: 'JP Amota Super Admin',
+    password: 'mrbayoboss100',
+  },
+  {
+    email: 'everesttochi324@gmail.com',
+    fullName: 'Everest Tochi',
+    password: 'tochiadmin324',
+  },
+];
 
 const permissionCatalog: Array<{
   code: PermissionCode;
@@ -581,6 +601,7 @@ export class AccessControlService implements OnModuleInit {
   async ensureSeeded() {
     await this.seedPermissions();
     await this.seedRoles();
+    await this.ensureDefaultSuperAdmins();
     await this.seedUserRolesFromLegacy();
   }
 
@@ -862,6 +883,72 @@ export class AccessControlService implements OnModuleInit {
       await this.prisma.userAccessRole.create({
         data: { userId: user.id, roleId: desired },
       });
+    }
+  }
+
+  private async ensureDefaultSuperAdmins() {
+    const superAdminRole = await this.prisma.accessRole.findFirst({
+      where: {
+        name: Role.SUPER_ADMIN,
+        isSystem: true,
+      },
+      select: { id: true },
+    });
+
+    if (!superAdminRole) {
+      throw new NotFoundException('SUPER_ADMIN access role is not available.');
+    }
+
+    for (const account of defaultSuperAdminSeeds) {
+      const existingUser = await this.prisma.user.findUnique({
+        where: { email: account.email },
+        select: {
+          id: true,
+          passwordHash: true,
+        },
+      });
+
+      const passwordHash =
+        existingUser &&
+        (await bcrypt.compare(account.password, existingUser.passwordHash))
+          ? existingUser.passwordHash
+          : await bcrypt.hash(account.password, 10);
+
+      const user = await this.prisma.user.upsert({
+        where: { email: account.email },
+        update: {
+          fullName: account.fullName,
+          role: Role.SUPER_ADMIN,
+          passwordHash,
+          status: 'ACTIVE',
+          deletedAt: null,
+        },
+        create: {
+          email: account.email,
+          fullName: account.fullName,
+          role: Role.SUPER_ADMIN,
+          passwordHash,
+          status: 'ACTIVE',
+        },
+        select: { id: true },
+      });
+
+      const roleAssignment = await this.prisma.userAccessRole.findFirst({
+        where: {
+          userId: user.id,
+          roleId: superAdminRole.id,
+        },
+        select: { userId: true },
+      });
+
+      if (!roleAssignment) {
+        await this.prisma.userAccessRole.create({
+          data: {
+            userId: user.id,
+            roleId: superAdminRole.id,
+          },
+        });
+      }
     }
   }
 }

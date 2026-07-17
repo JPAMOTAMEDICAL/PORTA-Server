@@ -9,6 +9,7 @@
     "build": "nest build",
     "db:push": "prisma db push",
     "db:seed": "node prisma/seed.js",
+    "db:seed:super-admins": "node scripts/seed-default-super-admins.js",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "node scripts/start-prod.js",
     "start:dev": "nest start --watch",
