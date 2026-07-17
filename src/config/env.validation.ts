@@ -4,6 +4,8 @@ const DEFAULT_PORT = 4000;
 const DEFAULT_JWT_EXPIRES_IN = '1d';
 const DEFAULT_JWT_REMEMBER_ME_EXPIRES_IN = '7d';
 const DEFAULT_NODE_ENV = 'development';
+const POSTGRES_URL_PATTERN =
+  /^(postgres(?:ql)?|prisma\+postgres(?:ql)?):\/\//i;
 const CLOUDINARY_REQUIRED_IF_SET = [
   'CLOUDINARY_CLOUD_NAME',
   'CLOUDINARY_API_KEY',
@@ -72,6 +74,10 @@ export function validateEnv(rawEnv: RawEnv) {
 
   if (!databaseUrl) {
     errors.push('DATABASE_URL is required.');
+  } else if (!POSTGRES_URL_PATTERN.test(databaseUrl)) {
+    errors.push(
+      'DATABASE_URL must use a PostgreSQL connection string (postgresql:// or postgres://).',
+    );
   }
 
   if (!jwtSecret) {

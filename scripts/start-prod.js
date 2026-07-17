@@ -6,22 +6,20 @@ const projectRoot = path.resolve(__dirname, '..');
 const prismaCliPath = require.resolve('prisma/build/index.js');
 const mainPath = path.join(projectRoot, 'dist', 'main.js');
 
-const prismaResult = spawnSync(
-  process.execPath,
-  [prismaCliPath, 'db', 'push', '--skip-generate'],
-  {
-    cwd: projectRoot,
-    stdio: 'inherit',
-  },
-);
+const migrationArgs = ['migrate', 'deploy'];
 
-if (prismaResult.error) {
-  console.error(prismaResult.error);
+const migrationResult = spawnSync(process.execPath, [prismaCliPath, ...migrationArgs], {
+  cwd: projectRoot,
+  stdio: 'inherit',
+});
+
+if (migrationResult.error) {
+  console.error(migrationResult.error);
   process.exit(1);
 }
 
-if (prismaResult.status !== 0) {
-  process.exit(prismaResult.status ?? 1);
+if (migrationResult.status !== 0) {
+  process.exit(migrationResult.status ?? 1);
 }
 
 if (!existsSync(mainPath)) {

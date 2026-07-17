@@ -6,7 +6,7 @@ Backend API for the JP AMOTA Medical Waste Management platform.
 
 - NestJS
 - Prisma ORM
-- SQLite for local development
+- PostgreSQL
 - JWT authentication with role-based permissions
 
 ## Responsibilities
@@ -21,11 +21,10 @@ Backend API for the JP AMOTA Medical Waste Management platform.
 Create a local `.env` file from `.env.example`.
 
 ```env
-DATABASE_URL="file:./dev.db"
+DATABASE_URL="postgresql://postgres:password@hostname:5432/porta_server?schema=public"
 JWT_SECRET="replace-with-a-long-random-secret"
 PORT=4000
 CORS_ORIGINS="http://localhost:3000,http://localhost:3003"
-KG_RATE=400
 GOOGLE_MAPS_API_KEY=""
 ```
 
@@ -44,7 +43,7 @@ npm run start:dev
 ## Database
 
 ```bash
-npm run db:push
+npx prisma migrate deploy
 npm run db:seed
 ```
 

@@ -9,7 +9,7 @@ describe('validateEnv', () => {
 
   it('applies defaults for optional runtime configuration', () => {
     const env = validateEnv({
-      DATABASE_URL: 'file:./dev.db',
+      DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/porta',
       JWT_SECRET: 'test-secret',
     });
 
@@ -22,7 +22,7 @@ describe('validateEnv', () => {
   it('allows startup without smtp configuration', () => {
     expect(() =>
       validateEnv({
-        DATABASE_URL: 'file:./dev.db',
+        DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/porta',
         JWT_SECRET: 'test-secret',
         SMTP_PORT: '587',
       }),
@@ -32,10 +32,19 @@ describe('validateEnv', () => {
   it('rejects incomplete cloudinary configuration', () => {
     expect(() =>
       validateEnv({
-        DATABASE_URL: 'file:./dev.db',
+        DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/porta',
         JWT_SECRET: 'test-secret',
         CLOUDINARY_CLOUD_NAME: 'demo',
       }),
     ).toThrow(/Cloudinary configuration is incomplete/);
+  });
+
+  it('rejects non-postgresql database urls', () => {
+    expect(() =>
+      validateEnv({
+        DATABASE_URL: 'mysql://user:password@localhost:3306/porta',
+        JWT_SECRET: 'test-secret',
+      }),
+    ).toThrow(/DATABASE_URL must use a PostgreSQL connection string/);
   });
 });

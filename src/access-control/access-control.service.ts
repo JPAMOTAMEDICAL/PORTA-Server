@@ -574,6 +574,7 @@ export class AccessControlService implements OnModuleInit {
   constructor(private readonly prisma: PrismaService) {}
 
   async onModuleInit() {
+    await this.prisma.$connect();
     await this.ensureSeeded();
   }
 
