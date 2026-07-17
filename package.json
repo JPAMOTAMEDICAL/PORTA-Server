@@ -10,7 +10,7 @@
     "db:push": "prisma db push",
     "db:seed": "node prisma/seed.js",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "nest start",
+    "start": "node scripts/start-prod.js",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node scripts/start-prod.js",
