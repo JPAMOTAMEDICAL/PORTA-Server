@@ -81,7 +81,7 @@ export class AiService {
       if (daysSinceCollection > threshold) {
         results.push({
           facilityId: facility.id,
-          facilityName: facility.name,
+          facilityName: facility.name?.trim() || 'Not provided',
           daysSinceCollection,
           threshold,
           status: 'OVERDUE',
@@ -111,7 +111,7 @@ export class AiService {
       .filter((facility) => facility.invoices.length === 0)
       .map((facility) => ({
         facilityId: facility.id,
-        facilityName: facility.name,
+        facilityName: facility.name?.trim() || 'Not provided',
         issue: 'MISSING_CURRENT_PERIOD_INVOICE',
       }));
   }
@@ -133,7 +133,7 @@ export class AiService {
     return overdueInvoices.map((invoice) => ({
       invoiceId: invoice.id,
       invoiceNo: invoice.invoiceNo,
-      facilityName: invoice.facility.name,
+      facilityName: invoice.facility.name?.trim() || 'Not provided',
       amountDue: invoice.amountDue,
       dueDate: invoice.dueDate,
     }));
@@ -172,7 +172,7 @@ export class AiService {
       if (deviation >= 0.5) {
         riskResults.push({
           facilityId: facility.id,
-          facilityName: facility.name,
+          facilityName: facility.name?.trim() || 'Not provided',
           predictedWeight: prediction,
           currentWeight,
           deviation,
