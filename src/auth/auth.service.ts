@@ -197,6 +197,10 @@ export class AuthService {
     }
 
     await this.usersService.updatePassword(resetToken.userId, newPassword);
+    await this.prisma.user.update({
+      where: { id: resetToken.userId },
+      data: { status: 'ACTIVE' },
+    });
     await this.prisma.passwordResetToken.update({
       where: { id: resetToken.id },
       data: { usedAt: new Date() },
@@ -233,6 +237,12 @@ export class AuthService {
     }
 
     await this.usersService.updatePassword(user.id, newPassword);
+    if (user.status === 'PASSWORD_CHANGE_REQUIRED') {
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { status: 'ACTIVE' },
+      });
+    }
 
     return { message: 'Password updated successfully.' };
   }

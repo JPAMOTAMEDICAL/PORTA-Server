@@ -64,12 +64,10 @@ export class AiService {
         orderBy: { collectionTime: 'desc' },
       });
 
-      const daysSinceCollection = lastCollection
-        ? Math.floor(
-            (Date.now() - lastCollection.collectionTime.getTime()) /
-              (1000 * 60 * 60 * 24),
-          )
-        : 999;
+      const baselineDate = lastCollection?.collectionTime ?? facility.createdAt;
+      const daysSinceCollection = Math.floor(
+        (Date.now() - baselineDate.getTime()) / (1000 * 60 * 60 * 24),
+      );
 
       const threshold =
         facility.collectionFrequency === 'TWICE_WEEKLY'

@@ -267,6 +267,10 @@ export class ReportsService {
       return {
         facilityId: facility.id,
         facilityName: facility.name,
+        facilityCode: facility.code,
+        contactPerson: facility.contactPerson,
+        email: facility.email,
+        phone: facility.phone,
         outstandingAmount: Number(facility.outstandingBalance ?? 0),
         openInvoices: facilityInvoices.filter(
           (invoice) => invoice.status !== InvoiceStatus.PAID,
@@ -343,7 +347,7 @@ export class ReportsService {
         ) ?? null;
 
       return {
-        hospital: collection.facility?.name ?? 'Unknown facility',
+        hospital: collection.facility?.name ?? 'Not provided',
         date: collection.collectionTime.toISOString(),
         time: collection.collectionTime.toISOString(),
         kg: Number(collection.weightKg ?? 0),
@@ -351,15 +355,15 @@ export class ReportsService {
         collectionStaff:
           collection.route?.createdBy?.fullName ??
           collection.driver?.fullName ??
-          'System',
-        driver: collection.driver?.fullName ?? 'Unassigned',
-        vehicle: collection.route?.vehicle?.plateNumber ?? 'Unassigned',
+          'Not provided',
+        driver: collection.driver?.fullName ?? 'Not provided',
+        vehicle: collection.route?.vehicle?.plateNumber ?? 'Not provided',
         manifestNumber: collection.manifestNo,
-        invoiceNumber: relatedInvoice?.invoiceNo ?? 'Not generated',
+        invoiceNumber: relatedInvoice?.invoiceNo ?? 'Not provided',
         paymentStatus: relatedInvoice
           ? this.resolveInvoicePaymentStatus(relatedInvoice)
-          : 'NOT_INVOICED',
-        remarks: collection.notes ?? collection.route?.status ?? 'N/A',
+          : 'Not provided',
+        remarks: collection.notes ?? collection.route?.status ?? 'Not provided',
       };
     });
   }
@@ -393,7 +397,7 @@ export class ReportsService {
 
     for (const collection of collections) {
       const current = records.get(collection.facilityId) ?? {
-        hospital: collection.facility?.name ?? 'Unknown facility',
+        hospital: collection.facility?.name ?? 'Not provided',
         totalKg: 0,
         totalCollections: 0,
         totalRevenue: 0,
@@ -406,7 +410,7 @@ export class ReportsService {
 
     for (const invoice of invoices) {
       const current = records.get(invoice.facilityId) ?? {
-        hospital: invoice.facility?.name ?? 'Unknown facility',
+        hospital: invoice.facility?.name ?? 'Not provided',
         totalKg: 0,
         totalCollections: 0,
         totalRevenue: 0,
@@ -478,7 +482,7 @@ export class ReportsService {
 
     for (const collection of collections) {
       const current = records.get(collection.facilityId) ?? {
-        hospital: collection.facility?.name ?? 'Unknown facility',
+        hospital: collection.facility?.name ?? 'Not provided',
         totalKg: 0,
         totalCollections: 0,
         totalRevenue: 0,
@@ -495,7 +499,7 @@ export class ReportsService {
 
     for (const invoice of invoices) {
       const current = records.get(invoice.facilityId) ?? {
-        hospital: invoice.facility?.name ?? 'Unknown facility',
+        hospital: invoice.facility?.name ?? 'Not provided',
         totalKg: 0,
         totalCollections: 0,
         totalRevenue: 0,

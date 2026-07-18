@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { BillingType, CollectionFrequency, FacilityType } from '@prisma/client';
@@ -23,10 +24,10 @@ export class FacilitiesController {
   @Post()
   @Permissions(PermissionCodes.FACILITIES_CREATE)
   create(
+    @Req() req: { user: { id: string } },
     @Body()
     body: {
       name: string;
-      code: string;
       type: FacilityType;
       address: string;
       city?: string;
@@ -42,28 +43,48 @@ export class FacilitiesController {
       contactPerson: string;
       phone: string;
       email: string;
+      password?: string;
+      confirmPassword?: string;
+      notes?: string;
+      outstandingBalance?: number;
+      previousDebt?: number;
+      previousUnpaidInvoice?: number;
+      outstandingReason?: string;
+      invoiceDueDate?: string;
+      outstandingNotes?: string;
     },
   ) {
-    return this.facilitiesService.create({
-      name: body.name,
-      code: body.code,
-      type: body.type,
-      address: body.address,
-      city: body.city,
-      state: body.state,
-      lga: body.lga,
-      gpsCoordinates: body.gpsCoordinates,
-      logoUrl: body.logoUrl,
-      billingType: body.billingType ?? BillingType.KG_BASED,
-      ratePerKg: body.ratePerKg,
-      fixedMonthlyRate: body.fixedMonthlyRate,
-      invoiceCycle: body.invoiceCycle,
-      collectionFrequency:
-        body.collectionFrequency ?? CollectionFrequency.WEEKLY,
-      contactPerson: body.contactPerson,
-      phone: body.phone,
-      email: body.email,
-    });
+    return this.facilitiesService.createOnboardingFacility(
+      {
+        name: body.name,
+        type: body.type,
+        address: body.address,
+        city: body.city,
+        state: body.state,
+        lga: body.lga,
+        gpsCoordinates: body.gpsCoordinates,
+        logoUrl: body.logoUrl,
+        billingType: body.billingType ?? BillingType.KG_BASED,
+        ratePerKg: body.ratePerKg,
+        fixedMonthlyRate: body.fixedMonthlyRate,
+        invoiceCycle: body.invoiceCycle,
+        collectionFrequency:
+          body.collectionFrequency ?? CollectionFrequency.WEEKLY,
+        contactPerson: body.contactPerson,
+        phone: body.phone,
+        email: body.email,
+        password: body.password,
+        confirmPassword: body.confirmPassword,
+        notes: body.notes,
+        initialOutstandingBalance: body.outstandingBalance,
+        previousDebt: body.previousDebt,
+        previousUnpaidInvoice: body.previousUnpaidInvoice,
+        outstandingReason: body.outstandingReason,
+        invoiceDueDate: body.invoiceDueDate,
+        outstandingNotes: body.outstandingNotes,
+      },
+      req.user.id,
+    );
   }
 
   @Get()
@@ -116,6 +137,28 @@ export class FacilitiesController {
     },
   ) {
     return this.facilitiesService.update(id, body);
+  }
+
+  @Post(':id/financial-actions')
+  @Permissions(PermissionCodes.FACILITIES_UPDATE)
+  createFinancialAction(
+    @Param('id') id: string,
+    @Req() req: { user: { id: string } },
+    @Body()
+    body: {
+      action:
+        | 'ADD_OUTSTANDING_BALANCE'
+        | 'GENERATE_INVOICE'
+        | 'ADJUST_BALANCE'
+        | 'WRITE_OFF';
+      amount: number;
+      reason: string;
+      dueDate?: string;
+      description?: string;
+      adminPassword: string;
+    },
+  ) {
+    return this.facilitiesService.createFinancialAction(id, req.user.id, body);
   }
 
   @Delete(':id')

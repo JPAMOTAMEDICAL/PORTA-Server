@@ -2,7 +2,6 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { FacilityType, Role, SignupStatus } from '@prisma/client';
 import { FacilitiesService } from '../facilities/facilities.service';
-import { UsersService } from '../users/users.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
@@ -10,7 +9,6 @@ export class SignupRequestsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly facilitiesService: FacilitiesService,
-    private readonly usersService: UsersService,
     private readonly notificationsService: NotificationsService,
   ) {}
 
@@ -92,42 +90,21 @@ export class SignupRequestsService {
     }
 
     const generatedPassword = `Welcome@${Math.floor(1000 + Math.random() * 9000)}`;
-    const generatedUsername = request.email.split('@')[0].toLowerCase();
-    const facilityCode = `FAC-${request.facilityName
-      .replace(/[^A-Za-z0-9]/g, '')
-      .slice(0, 5)
-      .toUpperCase()}-${String(Date.now()).slice(-4)}`;
-
-    const facility = await this.facilitiesService.createFromSignup({
-      name: request.facilityName,
-      type: request.facilityType,
-      address: request.address,
-      state: request.state,
-      lga: request.lga,
-      contactPerson: request.contactPerson,
-      phone: request.phone,
-      email: request.email,
-      code: facilityCode,
-    });
-
-    const account = await this.usersService.createUser({
-      email: request.email,
-      username: generatedUsername,
-      phone: request.phone,
-      password: generatedPassword,
-      fullName: request.contactPerson,
-      role: Role.HOSPITAL_ADMIN,
-      facilityId: facility.id,
-    });
-
-    await this.notificationsService.createNotification({
-      recipientId: account.id,
-      facilityId: facility.id,
-      title: 'Welcome to JPMWOMS',
-      message: `Your facility account has been approved. Username: ${generatedUsername}, password: ${generatedPassword}`,
-      type: 'WELCOME',
-      channel: 'EMAIL',
-    });
+    const onboardingResult = await this.facilitiesService.createOnboardingFacility(
+      {
+        name: request.facilityName,
+        type: request.facilityType,
+        address: request.address,
+        state: request.state,
+        lga: request.lga,
+        contactPerson: request.contactPerson,
+        phone: request.phone,
+        email: request.email,
+        password: generatedPassword,
+        confirmPassword: generatedPassword,
+      },
+      reviewedById,
+    );
 
     const updatedRequest = await this.prisma.signupRequest.update({
       where: { id },
@@ -135,21 +112,21 @@ export class SignupRequestsService {
         status: SignupStatus.APPROVED,
         reviewedById,
         reviewedAt: new Date(),
-        createdFacilityId: facility.id,
-        generatedUsername,
-        generatedPassword,
+        createdFacilityId: onboardingResult.facility.id,
+        generatedUsername: onboardingResult.generatedCode,
+        generatedPassword: null,
       },
     });
 
     return {
       request: updatedRequest,
-      facility,
-      account,
+      facility: onboardingResult.facility,
+      account: onboardingResult.account,
       credentials: {
         email: request.email,
-        username: generatedUsername,
+        username: onboardingResult.generatedCode,
         password: generatedPassword,
-        facilityCode,
+        facilityCode: onboardingResult.generatedCode,
       },
     };
   }
